@@ -1,0 +1,84 @@
+          <TabsContent value="employees" className="mt-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>LinkedIn</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {keyPersons.length > 0 ? (
+                    // Remove duplicates by creating a Map with name as key
+                    Array.from(
+                      new Map(keyPersons.map(person => [person.name, person])).values()
+                    ).map((person, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{person.name}</TableCell>
+                        <TableCell>{person.title || person.position}</TableCell>
+                        <TableCell>
+                          {person.email ? (
+                            <a 
+                              href={`mailto:${person.email}`} 
+                              className="text-blue-500 hover:text-blue-700 flex items-center"
+                            >
+                              <Mail className="h-4 w-4 mr-1" />
+                              {person.email}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {person.phone ? (
+                            <a 
+                              href={`tel:${person.phone}`} 
+                              className="text-blue-500 hover:text-blue-700 flex items-center"
+                            >
+                              <Phone className="h-4 w-4 mr-1" />
+                              {person.phone}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {person.linkedin ? (
+                            <a 
+                              href={person.linkedin} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-blue-500 hover:text-blue-700 flex items-center"
+                            >
+                              <Linkedin className="h-4 w-4 mr-1" />
+                              View
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                        No employee information available.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Tabs>
+        
+        <div className="flex justify-end mt-4">
+          <Button onClick={onClose}>Close</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

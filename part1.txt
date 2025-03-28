@@ -1,0 +1,11 @@
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No key contact information available.</p>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="employees" className="mt-4">
