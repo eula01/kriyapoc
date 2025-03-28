@@ -42,8 +42,13 @@ export async function fetchCompanyByCRN(crn: string): Promise<{ companyName: str
     
     // Extract company name from response
     if (data.company_name) {
-      console.log(`✅ [Server Action] Found company: ${data.company_name}`);
-      return { companyName: data.company_name };
+      // Clean up company name by removing LTD, PLC, etc.
+      const cleanedName = data.company_name
+        .replace(/\s+(LIMITED|LTD|PLC|LLC|INC|INCORPORATED|CORPORATION|CORP)\.?$/i, '')
+        .trim();
+      
+      console.log(`✅ [Server Action] Found company: ${cleanedName}`);
+      return { companyName: cleanedName };
     } else {
       console.log(`❌ [Server Action] No company name found in response`);
       return { companyName: null, error: "No company name found in response" };
