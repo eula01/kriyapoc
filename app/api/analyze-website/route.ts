@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         "Failed to extract content from website after multiple attempts."
     ) {
       console.error(
-        `❌ [API] Insufficient content for analysis: ${content.length} characters`
+        `❌ [API] Insufficient content for analysis: ${content.length} characters (${content.substring(0, 100)}...)`
       );
       return NextResponse.json(
         {
