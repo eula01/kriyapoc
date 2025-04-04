@@ -204,9 +204,11 @@ async function fetchAndEnrichKeyPersons(domain: string) {
 
     // Set up a webhook URL for receiving phone number data
     // This should be a stable endpoint that can receive callbacks from Apollo
-    const baseWebhookUrl = process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_VERCEL_URL
-      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-      : `http://localhost:3000`;
+    const baseWebhookUrl =
+      process.env.NODE_ENV === "production" &&
+      process.env.NEXT_PUBLIC_VERCEL_URL
+        ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+        : `http://localhost:3000`;
 
     // Enrich CEO data if available
     let enrichedCeo = { name: null, email: null, phone: null, linkedin: null };
@@ -220,11 +222,13 @@ async function fetchAndEnrichKeyPersons(domain: string) {
       try {
         if (ceoData.id) {
           // Include query parameters for person type and domain
-          const ceoWebhookUrl = `${baseWebhookUrl}/api/apollo-webhook?person_type=CEO&domain=${encodeURIComponent(domain)}`;
+          const ceoWebhookUrl = `${baseWebhookUrl}/api/apollo-webhook?person_type=CEO&domain=${encodeURIComponent(
+            domain
+          )}`;
           console.log(
             `🔍 [Apollo API] Enriching CEO data for ID: ${ceoData.id} with webhook URL: ${ceoWebhookUrl}`
           );
-          
+
           const enrichResponse = await fetch(
             "https://api.apollo.io/api/v1/people/match",
             {
@@ -254,7 +258,7 @@ async function fetchAndEnrichKeyPersons(domain: string) {
           );
           if (enrichData.person) {
             console.log(`✅ [Apollo API] Successfully enriched CEO data`);
-            
+
             enrichedCeo = {
               name:
                 ceoData.name || `${ceoData.first_name} ${ceoData.last_name}`,
@@ -299,11 +303,13 @@ async function fetchAndEnrichKeyPersons(domain: string) {
       try {
         if (cfoData.id) {
           // Include query parameters for person type and domain
-          const cfoWebhookUrl = `${baseWebhookUrl}/api/apollo-webhook?person_type=CFO&domain=${encodeURIComponent(domain)}`;
+          const cfoWebhookUrl = `${baseWebhookUrl}/api/apollo-webhook?person_type=CFO&domain=${encodeURIComponent(
+            domain
+          )}`;
           console.log(
             `🔍 [Apollo API] Enriching CFO data for ID: ${cfoData.id} with webhook URL: ${cfoWebhookUrl}`
           );
-          
+
           const enrichResponse = await fetch(
             "https://api.apollo.io/api/v1/people/match",
             {
@@ -333,7 +339,7 @@ async function fetchAndEnrichKeyPersons(domain: string) {
 
           if (enrichData.person) {
             console.log(`✅ [Apollo API] Successfully enriched CFO data`);
-            
+
             enrichedCfo = {
               name:
                 cfoData.name || `${cfoData.first_name} ${cfoData.last_name}`,
@@ -390,31 +396,31 @@ async function saveCompanyAnalysisToDatabase(
 
     // First check if the company exists by domain or apollo_id
     let existingCompany = null;
-    
+
     // Try to find by apollo_id first if available
     if (companyData.apollo_id) {
       const { data } = await supabase
         .from("company_analyses")
         .select("id")
-        .eq('apollo_id', companyData.apollo_id)
+        .eq("apollo_id", companyData.apollo_id)
         .maybeSingle();
-      
+
       if (data) existingCompany = data;
     }
-    
+
     // If not found and domain is available, try by domain
     if (!existingCompany && companyData.domain) {
       const { data } = await supabase
         .from("company_analyses")
         .select("id")
-        .eq('domain', companyData.domain)
+        .eq("domain", companyData.domain)
         .maybeSingle();
-      
+
       if (data) existingCompany = data;
     }
 
     let result;
-    
+
     if (existingCompany) {
       // Update existing company
       result = await supabase
@@ -450,42 +456,40 @@ async function saveCompanyAnalysisToDatabase(
           // Update timestamp
           updated_at: new Date().toISOString(),
         })
-        .eq('id', existingCompany.id);
+        .eq("id", existingCompany.id);
     } else {
       // Insert new company
-      result = await supabase
-        .from("company_analyses")
-        .insert({
-          name: companyData.name,
-          logo: companyData.logo,
-          domain: companyData.domain,
-          apollo_id: companyData.apollo_id,
-          linkedin_url: companyData.linkedin_url,
-          sales_channels: companyData.sales_channels,
+      result = await supabase.from("company_analyses").insert({
+        name: companyData.name,
+        logo: companyData.logo,
+        domain: companyData.domain,
+        apollo_id: companyData.apollo_id,
+        linkedin_url: companyData.linkedin_url,
+        sales_channels: companyData.sales_channels,
 
-          // Website analysis data
-          short_description: companyData.short_description,
-          products_and_services: companyData.products_and_services,
-          business_model: companyData.business_model,
-          has_online_checkout: companyData.has_online_checkout,
-          ecommerce_platform: companyData.ecommerce_platform,
-          payment_service_provider: companyData.payment_service_provider,
+        // Website analysis data
+        short_description: companyData.short_description,
+        products_and_services: companyData.products_and_services,
+        business_model: companyData.business_model,
+        has_online_checkout: companyData.has_online_checkout,
+        ecommerce_platform: companyData.ecommerce_platform,
+        payment_service_provider: companyData.payment_service_provider,
 
-          // Key people - CEO
-          ceo_name: companyData.key_people.ceo.name,
-          ceo_email: companyData.key_people.ceo.email,
-          ceo_phone: companyData.key_people.ceo.phone,
-          ceo_linkedin: companyData.key_people.ceo.linkedin,
+        // Key people - CEO
+        ceo_name: companyData.key_people.ceo.name,
+        ceo_email: companyData.key_people.ceo.email,
+        ceo_phone: companyData.key_people.ceo.phone,
+        ceo_linkedin: companyData.key_people.ceo.linkedin,
 
-          // Key people - CFO
-          cfo_name: companyData.key_people.cfo.name,
-          cfo_email: companyData.key_people.cfo.email,
-          cfo_phone: companyData.key_people.cfo.phone,
-          cfo_linkedin: companyData.key_people.cfo.linkedin,
+        // Key people - CFO
+        cfo_name: companyData.key_people.cfo.name,
+        cfo_email: companyData.key_people.cfo.email,
+        cfo_phone: companyData.key_people.cfo.phone,
+        cfo_linkedin: companyData.key_people.cfo.linkedin,
 
-          // Update timestamp
-          updated_at: new Date().toISOString(),
-        });
+        // Update timestamp
+        updated_at: new Date().toISOString(),
+      });
     }
 
     if (result.error) {
@@ -636,9 +640,8 @@ export async function POST(request: Request) {
         // Make API call to analyze-website endpoint
         const websiteAnalysisResponse = await fetch(
           `${
-            process.env.NODE_ENV === "production" &&
-            process.env.NEXT_PUBLIC_VERCEL_URL
-              ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+            process.env.NODE_ENV === "production"
+              ? `https://kriyapoc.vercel.app/`
               : `http://localhost:3000`
           }/api/analyze-website`,
           {
