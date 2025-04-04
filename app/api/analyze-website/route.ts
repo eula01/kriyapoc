@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 import { ZenRows } from "zenrows";
 import OpenAI from "openai";
 import { revalidatePath } from "next/cache";
-import { getServerSupabase } from "@/lib/supabase/server-client";
+import { fetchBuiltWithData } from "../apollo/route";
 
 // Define the structure for the analyzed website data
-interface WebsiteAnalysis {
+export interface WebsiteAnalysis {
   short_description: string;
   products_and_services: string[];
   business_model: "B2B" | "B2C" | "Both" | "unknown";
   has_online_checkout: "Yes" | "No" | "unknown";
-  ecommerce_platform: string;
-  payment_service_provider: string;
+  ecommerce_platform: string | null;
+  payment_service_provider: string | null;
 }
 
 // Handler for POST requests
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     // Parse the request body
     const body = await request.json();
-    const { website, accountId } = body;
+    const { website } = body;
 
     if (!website) {
       return NextResponse.json(
@@ -34,14 +34,8 @@ export async function POST(request: Request) {
     console.log(`🔄 [API] Step 1: Extracting website content`);
     const content = await extractWebsiteContent(website);
 
-    // Process domain for API calls
-    const domain = website
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .split("/")[0];
-
     // Verify we have sufficient content for analysis
-    const MIN_ANALYSIS_CONTENT = 200; // Minimum characters needed for a reasonable analysis
+    const MIN_ANALYSIS_CONTENT = 100; // Minimum characters needed for a reasonable analysis
     if (
       !content ||
       content.length < MIN_ANALYSIS_CONTENT ||
@@ -49,7 +43,9 @@ export async function POST(request: Request) {
         "Failed to extract content from website after multiple attempts."
     ) {
       console.error(
-        `❌ [API] Insufficient content for analysis: ${content.length} characters (${content.substring(0, 100)}...)`
+        `❌ [API] Insufficient content for analysis: ${
+          content.length
+        } characters (${content.substring(0, 100)}...)`
       );
       return NextResponse.json(
         {
@@ -59,60 +55,47 @@ export async function POST(request: Request) {
             products_and_services: ["unknown"],
             business_model: "unknown",
             has_online_checkout: "unknown",
-            ecommerce_platform: "unknown",
-            payment_service_provider: "unknown",
+            ecommerce_platform: null,
+            payment_service_provider: null,
           },
         },
         { status: 422 } // 422 Unprocessable Entity
       );
     }
+    console.log(`🔄 [API] Step 2: Running parallel analysis operations`);
+    const [analysis, salesChannelsAnalysis, builtWithData] = await Promise.all([
+      // OpenAI -- short description, products and services, business model, has online checkout
+      analyzeWebsiteContent(content),
 
-    // Analyze the extracted content with OpenAI
+      // Perplexity -- sales channels
+      analyzeSalesChannelsPerplexity(website),
+
+      // BuiltWith -- ecommerce platform and payment processors
+      fetchBuiltWithData(website),
+    ]);
+
     console.log(
-      `🔄 [API] Step 2: Analyzing extracted content (${content.length} characters)`
-    );
-    const analysis = await analyzeWebsiteContent(content);
-
-    // Analyze sales channels using Perplexity
-    console.log(`🔄 [API] Step 3: Analyzing sales channels with Perplexity`);
-    const salesChannelsAnalysis = await analyzeSalesChannelsPerplexity(domain);
-
-    console.log(
-      `✅ [API] Analysis successfully completed for ${website}`,
-      analysis
-    );
-    console.log(
-      `✅ [API] Sales channels analysis: ${salesChannelsAnalysis}`
-    );
-
-    // Update the account in the database if accountId is provided
-    if (accountId) {
-      try {
-        console.log(`🔄 [API] Updating account ${accountId} with sales channels data`);
-        
-        const supabase = getServerSupabase();
-        const { data, error } = await supabase
-          .from("accounts")
-          .update({ sales_channels: salesChannelsAnalysis })
-          .eq("id", accountId);
-          
-        if (error) {
-          console.error(`❌ [API] Error updating account:`, error);
-        } else {
-          console.log(`✅ [API] Successfully updated account with sales channels data`);
-        }
-      } catch (dbError) {
-        console.error(`❌ [API] Database error updating account:`, dbError);
-      }
-    }
-
-    // Ensure the accounts page is revalidated
-    revalidatePath("/accounts");
-    console.log(`🔄 [API] Revalidated /accounts path`);
-
-    return NextResponse.json({ 
+      `✅ [API] WEBSITE ANALYSIS DONE FOR ${website}`,
       analysis,
-      salesChannelsAnalysis
+      salesChannelsAnalysis,
+      builtWithData
+    );
+
+    revalidatePath("/accounts");
+    // Combine all analysis results
+    const combinedAnalysis = {
+      ...analysis,
+      ecommerce_platform: builtWithData.ecomm_provider,
+      payment_service_provider: builtWithData.psp_or_card_processor
+        ? Array.isArray(builtWithData.psp_or_card_processor)
+          ? [...new Set(builtWithData.psp_or_card_processor)]
+          : builtWithData.psp_or_card_processor
+        : builtWithData.psp_or_card_processor,
+    };
+
+    return NextResponse.json({
+      analysis: combinedAnalysis,
+      salesChannelsAnalysis,
     });
   } catch (error) {
     console.error(`❌ [API] Error processing analyze-website request:`, error);
@@ -125,10 +108,10 @@ export async function POST(request: Request) {
           products_and_services: ["unknown"],
           business_model: "unknown",
           has_online_checkout: "unknown",
-          ecommerce_platform: "unknown",
-          payment_service_provider: "unknown",
+          ecommerce_platform: null,
+          payment_service_provider: null,
         },
-        salesChannelsAnalysis: "unknown"
+        salesChannelsAnalysis: "unknown",
       },
       { status: 500 }
     );
@@ -234,9 +217,12 @@ async function extractWebsiteContent(website: string): Promise<string> {
 }
 
 // Function to analyze website content using OpenAI
-async function analyzeWebsiteContent(
-  websiteContent: string
-): Promise<WebsiteAnalysis> {
+async function analyzeWebsiteContent(websiteContent: string): Promise<{
+  short_description: string;
+  products_and_services: string[];
+  business_model: string;
+  has_online_checkout: string;
+}> {
   console.log(
     `🧠 [API:AI Analysis] Starting analysis of ${websiteContent.length} characters of website content`
   );
@@ -269,8 +255,6 @@ Extract the following structured information in JSON format. If the information 
   "products_and_services": ["<Product/Service 1>", "<Product/Service 2>", "..."],
   "business_model": "<B2B or B2C or Both or unclear>",
   "has_online_checkout": "<Yes or No>",
-  "ecommerce_platform": "<Shopify, WooCommerce, Magento, Wix, Squarespace, BigCommerce, custom, or unknown>",
-  "payment_service_provider": "<Stripe, PayPal, Adyen, Checkout.com, Worldpay, custom, or unknown>"
 }
   
 
@@ -292,19 +276,9 @@ Please only return the JSON object, nothing else.
     `✅ [API:AI Analysis] Response content: ${content.substring(0, 150)}...`
   );
 
-  // Extract the JSON response
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-
-  if (!jsonMatch) {
-    console.error(
-      `❌ [API:AI Analysis] Failed to extract JSON from OpenAI response`
-    );
-    throw new Error("Failed to extract JSON from OpenAI response");
-  }
-
   // Parse the JSON
   console.log(`🧠 [API:AI Analysis] Parsing JSON response`);
-  const analysis = JSON.parse(jsonMatch[0]) as WebsiteAnalysis;
+  const analysis = JSON.parse(content);
 
   console.log(`✅ [API:AI Analysis] Analysis complete`, analysis);
 
@@ -317,8 +291,6 @@ Please only return the JSON object, nothing else.
       : ["unknown"],
     business_model: analysis.business_model || "unknown",
     has_online_checkout: analysis.has_online_checkout || "unknown",
-    ecommerce_platform: analysis.ecommerce_platform || "unknown",
-    payment_service_provider: analysis.payment_service_provider || "unknown",
   };
 }
 
@@ -337,7 +309,7 @@ async function analyzeSalesChannelsPerplexity(domain: string): Promise<string> {
       },
       {
         role: "user",
-        content: `What sales channels does this company use? ${domain}. Please write a bullet point list of the sales channels, max 5 items. Don't explain why, just list the channels in plain text.`,
+        content: `What sales channels does this company use? ${domain}. Please write a brief bullet point list of the sales channels, max 5 items. Don't explain why, just list the channels, in plain text seperated by commas - nothing else. Don't use any formatting or newline symbols.`,
       },
     ],
   };

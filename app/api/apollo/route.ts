@@ -85,13 +85,15 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      
-      console.log(`🔄 [Apollo API] Searching for key people at domain: ${domain}`);
-      
+
+      console.log(
+        `🔄 [Apollo API] Searching for key people at domain: ${domain}`
+      );
+
       // Fetch both API responses in parallel for better performance
       const [keyPersons, builtWithData] = await Promise.all([
         fetchKeyPersons(domain),
-        fetchBuiltWithData(domain)
+        fetchBuiltWithData(domain),
       ]);
 
       return NextResponse.json({ keyPersons, builtWithData });
@@ -102,12 +104,15 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      
+
       console.log(`🔄 [Apollo API] Enriching person data for ID: ${personId}`);
-      
+
       const enrichedPerson = await enrichPersonData(personId);
-      console.log(`🔄🔄🔄🔄🔄 [Apollo API] Enriched person data:`, enrichedPerson);
-      
+      console.log(
+        `🔄🔄🔄🔄🔄 [Apollo API] Enriched person data:`,
+        enrichedPerson
+      );
+
       return NextResponse.json({ person: enrichedPerson });
     } else {
       return NextResponse.json(
@@ -116,8 +121,11 @@ export async function POST(request: Request) {
       );
     }
   } catch (error) {
-    console.error(`❌ [Apollo API] Error processing Apollo API request:`, error);
-    
+    console.error(
+      `❌ [Apollo API] Error processing Apollo API request:`,
+      error
+    );
+
     return NextResponse.json(
       { error: "Failed to process Apollo API request" },
       { status: 500 }
@@ -127,55 +135,87 @@ export async function POST(request: Request) {
 
 // Simplified key persons fetching function
 async function fetchKeyPersons(domain: string): Promise<ApolloPerson[]> {
-  console.log(`🔍 [Apollo API] Starting search for key persons at domain: ${domain}`);
+  console.log(
+    `🔍 [Apollo API] Starting search for key persons at domain: ${domain}`
+  );
 
   // List of executive titles to search for
   const executiveTitles = [
     // CEO titles
-    "CEO", "Chief Executive Officer", "Founder", "Co-Founder", 
-    "Owner", "President", "Managing Director",
+    "CEO",
+    "Chief Executive Officer",
+    "Founder",
+    "Co-Founder",
+    "Owner",
+    "President",
+    "Managing Director",
     // CFO titles
-    "CFO", "Chief Financial Officer"
+    "CFO",
+    "Chief Financial Officer",
   ];
-  
-  console.log(`🔍 [Apollo API] Searching for executives with titles:`, executiveTitles);
+
+  console.log(
+    `🔍 [Apollo API] Searching for executives with titles:`,
+    executiveTitles
+  );
 
   // Use the apolloApiCall helper
-  const result = await apolloApiCall("https://api.apollo.io/api/v1/mixed_people/search", {
-    q_organization_domains_list: [domain],
-    person_titles: executiveTitles,
-    person_seniorities: ["owner", "founder", "c_suite"],
-    per_page: 5,
-    page: 1,
-  });
-  
+  const result = await apolloApiCall(
+    "https://api.apollo.io/api/v1/mixed_people/search",
+    {
+      q_organization_domains_list: [domain],
+      person_titles: executiveTitles,
+      person_seniorities: ["owner", "founder", "c_suite"],
+      per_page: 5,
+      page: 1,
+    }
+  );
+
   // Return empty array if request failed
   if (!result.success) {
     console.error(`❌ [Apollo API] Failed to fetch key persons`);
     return [];
   }
-  
+
   // Get the array of people from the response
-  const peopleArray = (result.data.people || result.data.contacts || []) as ApolloContactPerson[];
+  const peopleArray = (result.data.people ||
+    result.data.contacts ||
+    []) as ApolloContactPerson[];
   console.log(`✅ [Apollo API] People found: ${peopleArray.length}`);
 
   console.log(
     `💾 [Apollo API] People found: ${JSON.stringify(peopleArray, null, 2)}`
   );
-  
+
   if (peopleArray.length === 0) {
     console.log(`⚠️ [Apollo API] No people found for domain: ${domain}`);
     return [];
   }
-  
+
   // Patterns to identify CEO and CFO titles
-  const ceoPatterns = [/ceo/i, /chief\s+executive/i, /founder/i, /co-founder/i, 
-                      /owner/i, /president/i, /managing\s+director/i, /creative\s+director/i];
-  const cfoPatterns = [/cfo/i, /chief\s+financial/i, /finance\s+director/i, 
-                      /vp\s+of\s+finance/i, /financial\s+controller/i];
-  
+  const ceoPatterns = [
+    /ceo/i,
+    /chief\s+executive/i,
+    /founder/i,
+    /co-founder/i,
+    /owner/i,
+    /president/i,
+    /managing\s+director/i,
+    /creative\s+director/i,
+  ];
+  const cfoPatterns = [
+    /cfo/i,
+    /chief\s+financial/i,
+    /finance\s+director/i,
+    /vp\s+of\s+finance/i,
+    /financial\s+controller/i,
+  ];
+
   // Helper function to format person data
-  const formatPerson = (person: ApolloContactPerson, position: string): ApolloPerson => ({
+  const formatPerson = (
+    person: ApolloContactPerson,
+    position: string
+  ): ApolloPerson => ({
     id: person.id,
     name: person.name || `${person.first_name} ${person.last_name}`,
     title: person.title || (position === "CEO" ? "CEO" : "CFO"),
@@ -184,103 +224,130 @@ async function fetchKeyPersons(domain: string): Promise<ApolloPerson[]> {
     linkedin: person.linkedin_url || null,
     position: position,
   });
-  
+
   const keyPersons: ApolloPerson[] = [];
-  
+
   // Find CEO
-  const ceo = peopleArray.find((person: ApolloContactPerson) => 
-    person.title && ceoPatterns.some(pattern => pattern.test(person.title))
+  const ceo = peopleArray.find(
+    (person: ApolloContactPerson) =>
+      person.title && ceoPatterns.some((pattern) => pattern.test(person.title))
   );
-  
+
   if (ceo) {
-    console.log(`✅ [Apollo API] Found CEO: ${ceo.first_name} ${ceo.last_name} (${ceo.title})`);
+    console.log(
+      `✅ [Apollo API] Found CEO: ${ceo.first_name} ${ceo.last_name} (${ceo.title})`
+    );
     keyPersons.push(formatPerson(ceo, "CEO"));
   } else if (peopleArray.length > 0) {
     // Use first person as CEO if no specific CEO found
-    console.log(`⚠️ [Apollo API] No CEO found, using first person as CEO: ${peopleArray[0].first_name} ${peopleArray[0].last_name}`);
+    console.log(
+      `⚠️ [Apollo API] No CEO found, using first person as CEO: ${peopleArray[0].first_name} ${peopleArray[0].last_name}`
+    );
     keyPersons.push(formatPerson(peopleArray[0], "CEO"));
   }
-  
+
   // Find CFO (excluding the CEO if already found)
-  const cfo = peopleArray.find((person: ApolloContactPerson) => 
-    person.title && 
-    cfoPatterns.some(pattern => pattern.test(person.title)) &&
-    (!ceo || person.id !== ceo.id)
+  const cfo = peopleArray.find(
+    (person: ApolloContactPerson) =>
+      person.title &&
+      cfoPatterns.some((pattern) => pattern.test(person.title)) &&
+      (!ceo || person.id !== ceo.id)
   );
-  
+
   if (cfo) {
-    console.log(`✅ [Apollo API] Found CFO: ${cfo.first_name} ${cfo.last_name} (${cfo.title})`);
+    console.log(
+      `✅ [Apollo API] Found CFO: ${cfo.first_name} ${cfo.last_name} (${cfo.title})`
+    );
     keyPersons.push(formatPerson(cfo, "CFO"));
   } else if (peopleArray.length > 1 && keyPersons.length > 0) {
     // Use second person as CFO if available and we already have a CEO
-    const secondPerson = peopleArray.find((p: ApolloContactPerson) => p.id !== keyPersons[0].id) || peopleArray[1];
-    console.log(`⚠️ [Apollo API] No CFO found, using second person as CFO: ${secondPerson.first_name} ${secondPerson.last_name}`);
+    const secondPerson =
+      peopleArray.find((p: ApolloContactPerson) => p.id !== keyPersons[0].id) ||
+      peopleArray[1];
+    console.log(
+      `⚠️ [Apollo API] No CFO found, using second person as CFO: ${secondPerson.first_name} ${secondPerson.last_name}`
+    );
     keyPersons.push(formatPerson(secondPerson, "CFO"));
   }
-  
+
   console.log(`✅ [Apollo API] Returning ${keyPersons.length} key persons`);
   return keyPersons;
 }
 
 // Simplified function to fetch and process BuiltWith data
-async function fetchBuiltWithData(domain: string): Promise<BuiltWithData> {
-  console.log(`🔍 [BuiltWith API] Starting tech stack analysis for domain: ${domain}`);
-  
+export async function fetchBuiltWithData(
+  domain: string
+): Promise<BuiltWithData> {
+  console.log(
+    `🔍 [BuiltWith API] Starting tech stack analysis for domain: ${domain}`
+  );
+
   try {
     // BuiltWith API endpoint with API key
-    const apiKey = process.env.NEXT_PUBLIC_BUILTWITH_API_KEY || "f6de8ac5-217e-4647-a0b8-b0a25cb52394";
+    const apiKey =
+      process.env.NEXT_PUBLIC_BUILTWITH_API_KEY ||
+      "7a8265f2-cdeb-41e7-8830-39e888762322";
     const url = `https://api.builtwith.com/v21/api.json?KEY=${apiKey}&LOOKUP=${domain}`;
-    
+
     console.log(`🔍 [BuiltWith API] Fetching tech stack data for ${domain}`);
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       console.error(`❌ [BuiltWith API] API error: ${response.status}`);
       return { ecomm_provider: null, psp_or_card_processor: null };
     }
-    
-    const data = await response.json() as BuiltWithResponse;
-    
+
+    const data = (await response.json()) as BuiltWithResponse;
+
     // Check for valid response structure
     if (!data?.Results?.[0]?.Result?.Paths) {
       console.error(`❌ [BuiltWith API] Invalid or empty response structure`);
       return { ecomm_provider: null, psp_or_card_processor: null };
     }
-    
+
     // Extract all technologies from all paths
     const allTechnologies: BuiltWithTechnology[] = [];
-    data.Results[0].Result.Paths.forEach(path => {
+    data.Results[0].Result.Paths.forEach((path) => {
       if (path.Technologies?.length) {
         allTechnologies.push(...path.Technologies);
       }
     });
-    
-    console.log(`✅ [BuiltWith API] Found ${allTechnologies.length} technologies`);
-    
+
+    console.log(
+      `✅ [BuiltWith API] Found ${allTechnologies.length} technologies`
+    );
+
     // Helper function to filter technologies by category
     const getTechsByCategory = (categories: string[]): string[] => {
       return allTechnologies
-        .filter(tech => 
-          tech.Categories?.some(category => categories.includes(category))
+        .filter((tech) =>
+          tech.Categories?.some((category) => categories.includes(category))
         )
-        .map(tech => tech.Name);
+        .map((tech) => tech.Name);
     };
-    
+
     // Get eCommerce platforms and payment processors
-    const ecommPlatforms = getTechsByCategory(['eCommerce', 'Shopify App']);
-    const paymentProcessors = getTechsByCategory(['Payments Processor', 'Pay Later']);
-    
-    console.log(`✅ [BuiltWith API] Found ${ecommPlatforms.length} eCommerce platforms and ${paymentProcessors.length} payment processors`);
-    
+    const ecommPlatforms = getTechsByCategory(["eCommerce", "Shopify App"]);
+    const paymentProcessors = getTechsByCategory([
+      "Payments Processor",
+      "Pay Later",
+    ]);
+
+    console.log(
+      `✅ [BuiltWith API] Found ${ecommPlatforms.length} eCommerce platforms and ${paymentProcessors.length} payment processors`
+    );
+
     return {
       ecomm_provider: ecommPlatforms.length ? ecommPlatforms.join(", ") : null,
-      psp_or_card_processor: paymentProcessors.length ? paymentProcessors.join(", ") : null
+      psp_or_card_processor: paymentProcessors.length
+        ? paymentProcessors.join(", ")
+        : null,
     };
   } catch (error) {
     console.error(`❌ [BuiltWith API] Error fetching tech stack data:`, error);
     return {
       ecomm_provider: null,
-      psp_or_card_processor: null
+      psp_or_card_processor: null,
     };
   }
 }
@@ -289,22 +356,22 @@ async function fetchBuiltWithData(domain: string): Promise<BuiltWithData> {
 async function apolloApiCall(url: string, payload: any) {
   console.log(`🔍 [Apollo API] Calling endpoint: ${url}`);
   console.log(`🔍 [Apollo API] Request payload:`, payload);
-  
+
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json", 
+        "Content-Type": "application/json",
         Accept: "application/json",
         "Cache-Control": "no-cache",
         "X-API-KEY": process.env.NEXT_PUBLIC_APOLLO_API_KEY || "",
       },
       body: JSON.stringify(payload),
     });
-    
+
     // Log response status
     console.log(`🔍 [Apollo API] Response status: ${response.status}`);
-    
+
     // Handle response errors
     if (!response.ok) {
       const errorText = await response.text();
@@ -314,17 +381,20 @@ async function apolloApiCall(url: string, payload: any) {
       );
       return { success: false, error: `API error: ${response.status}` };
     }
-    
+
     // Get response text first to help debug any JSON parsing issues
     const responseText = await response.text();
-    
+
     // Try to parse as JSON
     try {
       const data = JSON.parse(responseText);
       console.log(`✅ [Apollo API] Successfully processed API response`);
       return { success: true, data };
     } catch (jsonError) {
-      console.error(`❌ [Apollo API] Failed to parse JSON response:`, jsonError);
+      console.error(
+        `❌ [Apollo API] Failed to parse JSON response:`,
+        jsonError
+      );
       return { success: false, error: "Failed to parse API response" };
     }
   } catch (error) {
@@ -341,64 +411,77 @@ async function enrichPersonData(personId: string) {
   const initialPayload = {
     id: personId,
     reveal_personal_emails: true,
-    reveal_phone_number: true,
+    // reveal_phone_number: true,
     webhook_url: "https://api.apollo.io/api/v1/people/match",
   };
 
   const primaryResult = await apolloApiCall(
-    "https://api.apollo.io/api/v1/people/match", 
+    "https://api.apollo.io/api/v1/people/match",
     initialPayload
   );
-  
+
   // Process the primary response
   if (primaryResult.success && primaryResult.data.person) {
     const person = primaryResult.data.person;
-    
+
     // Extract the contact information
     const contactInfo = {
       email: person.email || null,
-      phone_number: person.phone || person.sanitized_phone || 
-                   (person.contact ? person.contact.phone_number : null) || null
+      phone_number:
+        person.phone ||
+        person.sanitized_phone ||
+        (person.contact ? person.contact.phone_number : null) ||
+        null,
     };
-    
+
     // Only try secondary enrichment if we're missing email or phone
     if (!contactInfo.email || !contactInfo.phone_number) {
-      console.log(`🔍 [Apollo API] First request didn't yield complete contact data, trying alternate enrichment`);
-      
+      console.log(
+        `🔍 [Apollo API] First request didn't yield complete contact data, trying alternate enrichment`
+      );
+
       // Try secondary enrichment endpoint
       const secondaryResult = await apolloApiCall(
-        "https://api.apollo.io/api/v1/people/contact", 
+        "https://api.apollo.io/api/v1/people/contact",
         { id: personId, reveal_personal_emails: true }
       );
-      
+
       // If successful, update with any new information
       if (secondaryResult.success && secondaryResult.data.person) {
         const secondaryPerson = secondaryResult.data.person;
-        
+
         // Update email if we got a better one (non-null or not a placeholder)
-        if (secondaryPerson.email && 
-            (!contactInfo.email || 
-             contactInfo.email.includes("domain.com") || 
-             contactInfo.email.includes("not_unlocked"))) {
-          console.log(`✅ [Apollo API] Found better email in second request: ${secondaryPerson.email}`);
+        if (
+          secondaryPerson.email &&
+          (!contactInfo.email ||
+            contactInfo.email.includes("domain.com") ||
+            contactInfo.email.includes("not_unlocked"))
+        ) {
+          console.log(
+            `✅ [Apollo API] Found better email in second request: ${secondaryPerson.email}`
+          );
           contactInfo.email = secondaryPerson.email;
         }
       }
     }
-    
+
     // Log what we found
-    console.log(`✅✅✅✅ [Apollo API] Final enriched data - Email: ${contactInfo.email || 'none'}, Phone: ${contactInfo.phone_number || 'none'}`);
-    
+    console.log(
+      `✅✅✅✅ [Apollo API] Final enriched data - Email: ${
+        contactInfo.email || "none"
+      }, Phone: ${contactInfo.phone_number || "none"}`
+    );
+
     // Return the person with updated contact information
     return {
       ...person,
       email: contactInfo.email,
       contact: {
-        phone_number: contactInfo.phone_number
-      }
+        phone_number: contactInfo.phone_number,
+      },
     };
-  } 
-  
+  }
+
   console.log(`⚠️ [Apollo API] Could not enrich person with ID: ${personId}`);
   return null;
-} 
+}

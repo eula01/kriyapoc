@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PuzzleIcon } from "lucide-react";
+import { Building, LayoutDashboard, PuzzleIcon, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
@@ -23,7 +23,7 @@ export default function Sidebar() {
 
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
-          <li>
+          {/* <li>
             <Link
               href="/accounts"
               className={cn(
@@ -49,6 +49,34 @@ export default function Sidebar() {
             >
               <PuzzleIcon className="h-4 w-4" />
               <span>Integrations</span>
+            </Link>
+          </li> */}
+          <li>
+            <Link
+              href="/use-case-1"
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                pathname.startsWith("/use-case-1")
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground"
+              )}
+            >
+              <Building className="h-4 w-4" />
+              <span>Use case 1: Accounts</span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/use-case-2"
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                pathname.startsWith("/use-case-2")
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground"
+              )}
+            >
+              <UserRound className="h-4 w-4" />
+              <span>Use case 2: Contacts</span>
             </Link>
           </li>
         </ul>
