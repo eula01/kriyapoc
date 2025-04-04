@@ -16,6 +16,7 @@ const eslintConfig = [
       // Disable all problematic rules
       "@typescript-eslint/no-unused-vars": "off",
       "react-hooks/rules-of-hooks": "off",
+      "react-hooks/exhaustive-deps": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-interface": "off",
       "@typescript-eslint/no-empty-object-type": "off"

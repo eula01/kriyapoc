@@ -117,7 +117,7 @@ export function CompanyAnalysisModal({
     ? typeof company.payment_service_provider === 'string'
       ? [company.payment_service_provider]
       : Array.isArray(company.payment_service_provider)
-        ? company.payment_service_provider.filter(Boolean)
+        ? (company.payment_service_provider as string[]).filter(Boolean)
         : []
     : [];
 

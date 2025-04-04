@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ZenRows } from "zenrows";
 import OpenAI from "openai";
 import { revalidatePath } from "next/cache";
-import { fetchBuiltWithData } from "../apollo/route";
+import { fetchBuiltWithData } from "@/lib/util";
 
 // Define the structure for the analyzed website data
 export interface WebsiteAnalysis {
