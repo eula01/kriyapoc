@@ -253,7 +253,7 @@ Extract the following structured information in JSON format. If the information 
 {
   "short_description": "<Short (1-2 sentence) summary of the product or service offered by the business based on website content>",
   "products_and_services": ["<Product/Service 1>", "<Product/Service 2>", "..."],
-  "business_model": "<B2B or B2C or Both or unclear>",
+  "business_model": "<B2B or B2C or Both or unknown>",
   "has_online_checkout": "<Yes or No>",
 }
   
@@ -284,12 +284,18 @@ Please only return the JSON object, nothing else.
 
   revalidatePath("/");
 
+  // Ensure business_model is a valid value
+  let businessModel = analysis.business_model || "unknown";
+  if (!["B2B", "B2C", "Both", "unknown"].includes(businessModel)) {
+    businessModel = "unknown";
+  }
+
   return {
     short_description: analysis.short_description || "unknown",
     products_and_services: Array.isArray(analysis.products_and_services)
       ? analysis.products_and_services
       : ["unknown"],
-    business_model: analysis.business_model || "unknown",
+    business_model: businessModel,
     has_online_checkout: analysis.has_online_checkout || "unknown",
   };
 }
